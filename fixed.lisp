@@ -17,7 +17,7 @@
          :type real)))
 (defmethod print-object ((rs range-spec) stream)
   (print-unreadable-object (rs stream)
-    (format stream "(<= ~A val ~A)"
+    (format stream "<= ~A val ~A"
             (low rs) (high rs))))
 
 (declaim (inline range-check))
@@ -26,7 +26,7 @@
            (type number value))
   (<= (low spec) value (high spec)))
 
-(defclass ordinary-fp-spec (range-spec)
+(defclass ordinary-fp-spec ()
   ((small :reader small
           :initarg :small
           :type :real)
@@ -35,9 +35,11 @@
           :type real)))
 (defmethod print-object ((spec ordinary-fp-spec) stream)
   (print-unreadable-object (spec stream)
-    (format stream "delta ~A (<= ~A value ~A) ' ~A"
-            (delta spec) (low spec) (high spec)
-            (small spec))))
+    (format stream "delta ~A : ~A"
+            (delta spec) (small spec))))
+
+(defclass ordinary-ranged-fp-spec (ordinary-fp-spec ranged)
+  ())
 
 (defclass fp ()
   ((spec :reader spec
@@ -52,20 +54,25 @@
 (defun get-fixed-type (name)
   (gethash name *specs*))
 
-(defmacro defdelta (name delta low high &optional small)
+(defmacro defdelta (name delta &key range small)
   (let ((spec (gensym "SPEC"))
-        (fn-name (intern (concatenate 'string
+	(fn-name (intern (concatenate 'string
                                       "MAKE-"
                                       (symbol-name name))))
-        (small (if small
-                   small
+        (small (if small small
                    (expt 2 (- (integer-length (ceiling (/ delta))))))))
-    `(let ((,spec (make-instance 'ordinary-fp-spec
+    `(let ((,spec (make-instance ,(if range
+				      'ordinary-ranged-fp-spec
+				      'ordinary-fp-spec)
                                  :name ',name
-                                 :low ,low
-                                 :high ,high
+                                 :low ,(car range)
+                                 :high ,(cadr range)
                                  :delta ,delta
                                  :small ,small)))
+       ;; (defclass ,name ()
+       ;; 	 ((value :accessor value
+       ;; 		 :initarg :value
+       ;; 		 :type (integer ,))))
        (setf (gethash ',name *specs*)
              ,spec)
        (defun ,fn-name (value)
