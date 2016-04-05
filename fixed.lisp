@@ -2,45 +2,6 @@
 
 (in-package #:fixed)
 
-;;; "fixed" goes here. Hacks and glory await!
-
-(defclass spec ()
-  ((name :reader spec-name
-         :initarg :name)))
-
-(defclass range-spec (spec)
-  ((low :reader low
-        :initarg :low
-        :type real)
-   (high :reader high
-         :initarg :high
-         :type real)))
-(defmethod print-object ((rs range-spec) stream)
-  (print-unreadable-object (rs stream)
-    (format stream "<= ~A val ~A"
-            (low rs) (high rs))))
-
-(declaim (inline range-check))
-(defun range-check (spec value)
-  ;; (declare (type range-spec spec)
-  ;;          (type number value))
-  (<= (low spec) value (high spec)))
-
-(defclass ordinary-fp-spec ()
-  ((small :reader small
-          :initarg :small
-          :type :real)
-   (delta :reader delta
-          :initarg :delta
-          :type real)))
-(defmethod print-object ((spec ordinary-fp-spec) stream)
-  (print-unreadable-object (spec stream)
-    (format stream "delta ~A : ~A"
-            (delta spec) (small spec))))
-
-(defclass ordinary-ranged-fp-spec (ordinary-fp-spec ranged)
-  ())
-
 (defclass fp ()
   ())
 
@@ -49,10 +10,6 @@
 
 (defclass ordinary-ranged-fp (fp)
   ())
-
-(defparameter *specs* (make-hash-table))
-(defun get-fixed-type (name)
-  (gethash name *specs*))
 
 (defgeneric float (delta))
 
