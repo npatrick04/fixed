@@ -2,10 +2,20 @@
 
 (defpackage #:fixed
   (:use #:cl)
-  (:shadow #:float)
   (:export
+   ;; The big kahuna
    #:defdelta
 
-   ;; Conversion
-   #:float))
+   ;; Predicates
+   #:f= 
+   #:f/=
+   #:f> 
+   #:f>=
+   #:f< 
+   #:f<=
+   
+   ;; Arithmetic
+   #:f+
+   #:f-
+   #:f*))
 
