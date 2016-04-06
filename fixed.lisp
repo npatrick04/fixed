@@ -27,7 +27,7 @@
 				       (symbol-name name)
 				       "-VALUE")))
         (small (if small small
-                   (expt 2 (- (integer-length (ceiling (/ delta))))))))
+		   (expt 2 (- (ceiling (log (/ delta) 2)))))))
     (let ((low  (and range (round (caadr range)  small)))
 	  (high (and range (round (cadadr range) small))))
       `(progn
