@@ -130,4 +130,4 @@
 	     (format stream "~D.~v,,,'0<~D~>"
 		     quotient
 		     ,digits 
-		     remainder)))))))
+		     (abs remainder))))))))
