@@ -5,6 +5,7 @@
   (:export
    ;; The big kahuna
    #:defdelta
+   #:defdecimal
 
    ;; Predicates
    #:f= 

@@ -113,3 +113,21 @@
 	 ;; v1 * v2 == i1 * small * i2 * small
 
 	 ',name))))
+
+(defmacro defdecimal (name digits &key range)
+  "A short-cut for defining a base-10 decimal type, that also happens
+  to be printed correctly."
+  (let ((delta (expt 10 (- digits)))
+	(raw-name (intern (concatenate 'string
+				       (symbol-name name)
+				       "-VALUE"))))
+    `(progn
+       (defdelta ,name ,delta :range ,range :small ,delta)
+       (defmethod print-object ((object ,name) stream)
+	 (print-unreadable-object (object stream :type t)
+	   (multiple-value-bind (quotient remainder)
+	       (truncate (,raw-name object) (/ ,delta))
+	     (format stream "~D.~v,,,'0<~D~>"
+		     quotient
+		     ,digits 
+		     remainder)))))))
