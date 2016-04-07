@@ -40,6 +40,10 @@
   (let ((fn-name (intern (concatenate 'string
                                       "MAKE-"
                                       (symbol-name name))))
+	(fn-raw-name (intern (concatenate 'string
+					  "MAKE-"
+					  (symbol-name name)
+					  "-VALUE")))
 	(set-name (intern (concatenate 'string
 				       "SET-"
 				       (symbol-name name))))
@@ -75,6 +79,8 @@
 	   (,set-raw-name fp (round value ,small)))
 	 (defun ,fn-name (value)
 	   (,set-name (make-instance ',name) value))
+	 (defun ,fn-raw-name (value)
+	   (,set-raw-name (make-instance ',name) value))
 	 (defun ,name (fp)
 	   ;; There's got to be a better way...
 	   (declare (optimize speed))
