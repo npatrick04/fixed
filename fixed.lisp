@@ -31,6 +31,8 @@
 	 t)))
 
 (defgeneric f+ (value &rest rest))
+(defgeneric f- (value &rest rest))
+(defgeneric f* (value &rest rest))
 (defmacro math (mname name sv-name v-name fn)
   `(defmethod ,mname ((value ,name) &rest rest)
      (,sv-name (make-instance ',name)
