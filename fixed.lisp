@@ -50,8 +50,9 @@
 				       "SET-"
 				       (symbol-name name))))
 	(set-raw-name (intern (concatenate 'string
-					   "SET-VALUE-"
-					   (symbol-name name))))
+					   "SET-"
+					   (symbol-name name)
+                                           "-VALUE")))
 	(raw-name (intern (concatenate 'string
 				       (symbol-name name)
 				       "-VALUE")))
@@ -87,7 +88,7 @@
 	   ;; There's got to be a better way...
 	   (declare (optimize speed))
 	   (* ,delta
-	      (round (* (,raw-name fp)
+	      (round (* (the integer (,raw-name fp))
 			,small)
 		     ,delta)))
 
@@ -125,11 +126,12 @@
 (defmacro defdecimal (name digits &key range)
   "A short-cut for defining a base-10 decimal type, that also happens
   to be printed correctly."
-  (let ((delta (expt 10 (- digits)))
+  (let ((delta (gensym "DELTA"))
 	(raw-name (intern (concatenate 'string
 				       (symbol-name name)
 				       "-VALUE"))))
-    `(progn
+    `(let ((,delta (expt 10 (- ,digits))))
+       (declare (type rational ,delta))
        (defdelta ,name ,delta :range ,range :small ,delta)
        (defmethod print-object ((object ,name) stream)
 	 (print-unreadable-object (object stream :type t)
