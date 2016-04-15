@@ -52,6 +52,11 @@ type are in ascending-or-equal order."))
   (:documentation "Multiply all fixed-point arguments of a single
   type.  The first value returned is the resultant fixed-point value,
   the second value is the residual."))
+(defgeneric f/ (value &rest rest)
+  (:documentation "Divide the first value by the rest, or perform the
+  inverse operation if a single value is provided.
+  The first value returned is the resultant fixed-point value, the
+  second value is the residual."))
 ;;; TODO f/
 (defmacro math (mname name sv-name v-name fn)
   `(defmethod ,mname ((value ,name) &rest rest)
@@ -160,6 +165,9 @@ type are in ascending-or-equal order."))
 
          (math f+ ,name ,set-raw-name ,raw-name +)
          (math f- ,name ,set-raw-name ,raw-name -)
+         ;; * and / are not as simple
+         ;; v = i1 * small
+         ;; v1 * v2 == i1 * small * i2 * small
          (defmethod f* ((value ,name) &rest rest)
            (multiple-value-bind (quotient remainder)
                (round (apply #'* (,raw-name value)
@@ -169,9 +177,18 @@ type are in ascending-or-equal order."))
              (values (,set-raw-name (make-instance ',name)
                                     quotient)
                      (* remainder ,small))))
-         ;; * and - are not as simple
-         ;; v = i1 * small
-         ;; v1 * v2 == i1 * small * i2 * small
+         ;; v = i * small
+         ;; (/ v1 v2) == (* v1 small) / (* v2 small)
+         ;; (/ v1 v2 v3) == (* v1 small) / (* v2 v3 small small)
+         (defmethod f/ ((value ,name) &rest rest)
+           (multiple-value-bind (quotient remainder)
+               (round (apply #'/ (,raw-name value)
+                             (mapcar (lambda (val)
+                                       (* (,raw-name val) ,small))
+                                     rest)))
+             (values (,set-raw-name (make-instance ',name)
+                                    quotient)
+                     (* remainder ,small))))
 
          ',name))))
 
