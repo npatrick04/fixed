@@ -14,8 +14,6 @@
   ())
 
 ;;; Rule of fixed contagion...it's not.
-;; (declaim (ftype (function (fp &rest rest) (or t nil)))
-;; 	 f= f/= f> f>= f< f<=)
 (defgeneric f= (number &rest rest)
   (:documentation "Determine if fixed-point values of the same
 type are equal."))
