@@ -91,7 +91,7 @@ type are in ascending-or-equal order."))
 - NAME: Accessor (setf'able) for the engineering unit value.
 
 - Predicates: f= f/= f< f<= f> f>=
-- Math operations: f+ f- f*"
+- Math operations: f+ f- f* f/"
   (let ((fn-name (intern (concatenate 'string
                                       "MAKE-"
                                       (symbol-name name))))
