@@ -61,7 +61,7 @@ type are in ascending-or-equal order."))
   inverse operation if a single value is provided.
   The first value returned is the resultant fixed-point value, the
   second value is the residual."))
-;;; TODO f/
+
 (defmacro math (mname name sv-name v-name fn)
   `(defmethod ,mname ((value ,name) &rest rest)
      (,sv-name (make-instance ',name)
