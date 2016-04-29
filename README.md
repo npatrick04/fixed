@@ -34,10 +34,13 @@ A utility package that implements a fixed-point type for internal real time.
 ```lisp
 ;; Get the current internal real time as a fixed point
 (defparameter the-time (current-time))
+;; => #<REAL-TIME 522918.199>
+
 ;; do some stuff
 
 ;; calculate deltat
 (f- (current-time) the-time)
+;; => #<REAL-TIME 15.616>
 ```
 
 License
