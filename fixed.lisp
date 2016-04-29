@@ -198,10 +198,11 @@ type are in ascending-or-equal order."))
          ;; v1 * v2 == i1 * small * i2 * small
          (defmethod f* ((value ,name) &rest rest)
            (multiple-value-bind (quotient remainder)
-               (round (apply #'* (,raw-name value)
-                             (mapcar (lambda (val)
-                                       (* (,raw-name val) ,small))
-                                     rest)))
+               (round (* (apply #'*	; Product of the integral parts
+				(,raw-name value)
+				(mapcar #',raw-name rest))
+			 ;; multiplied by small for each rest parameter
+			 (expt ,small (length rest))))
              (values (,set-raw-name (make-instance ',name)
                                     quotient)
                      (* remainder ,small))))
