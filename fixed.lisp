@@ -6,6 +6,10 @@
 ;;; This value will be shadowed by the specific definitions below.
 (defclass fp ()
   ((value)))
+(defgeneric small (fp)
+  (:documentation "Return the scaling factor used by fp."))
+(defgeneric delta (fp)
+  (:documentation "Return the delta used by fp."))
 
 (defclass ordinary-fp (fp)
   ())
@@ -127,7 +131,13 @@ type are in ascending-or-equal order."))
                    :type ,(if range-p
                               `(integer ,low-range ,high-range)
                               `integer))))
+	 (defmethod small ((fp ,name))
+	   ,small)
+	 (defmethod delta ((fp ,name))
+	   ,delta)
          (defun ,set-raw-name (fp value)
+	   (declare (type ,name fp)
+		    (type integer value))
            ,(if range-p
                 `(setf (%value fp)
                        (the (integer ,low-range ,high-range)
@@ -135,8 +145,26 @@ type are in ascending-or-equal order."))
                 `(setf (%value fp)
                        (the integer value)))
            fp)
-         (defun ,set-name (fp value)
-           (,set-raw-name fp (round value ,small)))
+	 (defgeneric ,set-name (fp value)
+	   (:documentation "Set the fp to some value."))
+	 (defmethod ,set-name ((fp ,name) (value real))
+	   (multiple-value-bind
+		 (quotient remainder) (round value ,small)
+	     (values (,set-raw-name fp quotient)
+		     remainder)))
+	 (defmethod ,set-name ((fp ,name) (value ,name))
+	   ;; Just set it equal and return the fp.
+	   (setf (%value fp) (,raw-name value))
+	   (values fp 0))
+	 (defmethod ,set-name ((fp ,name) (value fp))
+	   ;; Now it's interesting, another fp type, but not name.
+	   (let ((conversion-ratio (/ (small value) (small fp))))
+	     (multiple-value-bind
+		   (quotient remainder)
+		 (round (* conversion-ratio
+			   (slot-value value 'value)))
+	       (values (,set-raw-name fp quotient)
+		       remainder))))
          (defun ,make-name (value)
            (,set-name (make-instance ',name) value))
          (defun ,make-raw-name (value)
