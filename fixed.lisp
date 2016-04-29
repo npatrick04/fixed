@@ -92,13 +92,13 @@ type are in ascending-or-equal order."))
 
 - Predicates: f= f/= f< f<= f> f>=
 - Math operations: f+ f- f* f/"
-  (let ((fn-name (intern (concatenate 'string
-                                      "MAKE-"
-                                      (symbol-name name))))
-	(fn-raw-name (intern (concatenate 'string
-					  "MAKE-"
-					  (symbol-name name)
-					  "-VALUE")))
+  (let ((make-name (intern (concatenate 'string
+					"MAKE-"
+					(symbol-name name))))
+	(make-raw-name (intern (concatenate 'string
+					    "MAKE-"
+					    (symbol-name name)
+					    "-VALUE")))
 	(set-name (intern (concatenate 'string
 				       "SET-"
 				       (symbol-name name))))
@@ -137,9 +137,9 @@ type are in ascending-or-equal order."))
            fp)
          (defun ,set-name (fp value)
            (,set-raw-name fp (round value ,small)))
-         (defun ,fn-name (value)
+         (defun ,make-name (value)
            (,set-name (make-instance ',name) value))
-         (defun ,fn-raw-name (value)
+         (defun ,make-raw-name (value)
            (,set-raw-name (make-instance ',name) value))
          (defun ,name (fp)
            ;; There's got to be a better way...
