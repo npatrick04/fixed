@@ -67,6 +67,9 @@ type are in ascending-or-equal order."))
      (,sv-name (make-instance ',name)
 	       (apply #',fn (,v-name value) (mapcar #',v-name rest)))))
 
+(defparameter *rounding-method* #'round
+  "#'round or #'truncate or similar functions will be used to handle precision loss.")
+
 (defmacro defdelta (name delta &key low high small)
   "Define a fixed point class named NAME which supports a resolution
   of DELTA.  The class maintains the value as an
@@ -146,10 +149,10 @@ type are in ascending-or-equal order."))
                        (the integer value)))
            fp)
 	 (defgeneric ,set-name (fp value)
-	   (:documentation "Set the fp to some value."))
+	   (:documentation "Set the fp to some value"))
 	 (defmethod ,set-name ((fp ,name) (value real))
 	   (multiple-value-bind
-		 (quotient remainder) (round value ,small)
+		 (quotient remainder) (funcall *rounding-method* value ,small)
 	     (values (,set-raw-name fp quotient)
 		     remainder)))
 	 (defmethod ,set-name ((fp ,name) (value ,name))
@@ -161,8 +164,9 @@ type are in ascending-or-equal order."))
 	   (let ((conversion-ratio (/ (small value) (small fp))))
 	     (multiple-value-bind
 		   (quotient remainder)
-		 (round (* conversion-ratio
-			   (slot-value value 'value)))
+		 (funcall *rounding-method*
+			  (* conversion-ratio
+			     (slot-value value 'value)))
 	       (values (,set-raw-name fp quotient)
 		       remainder))))
          (defun ,make-name (value)
@@ -173,9 +177,9 @@ type are in ascending-or-equal order."))
            ;; There's got to be a better way...
            (declare (optimize speed))
            (* ,delta
-              (round (* (the integer (,raw-name fp))
-                        ,small)
-                     ,delta)))
+              (funcall *rounding-method* (* (the integer (,raw-name fp))
+				 ,small)
+		       ,delta)))
 
          (defmethod print-object ((object ,name) stream)
            (print-unreadable-object (object stream :type t)
@@ -198,11 +202,11 @@ type are in ascending-or-equal order."))
          ;; v1 * v2 == i1 * small * i2 * small
          (defmethod f* ((value ,name) &rest rest)
            (multiple-value-bind (quotient remainder)
-               (round (* (apply #'*	; Product of the integral parts
-				(,raw-name value)
-				(mapcar #',raw-name rest))
-			 ;; multiplied by small for each rest parameter
-			 (expt ,small (length rest))))
+               (funcall *rounding-method* (* (apply #'*	; Product of the integral parts
+						    (,raw-name value)
+						    (mapcar #',raw-name rest))
+					     ;; multiplied by small for each rest parameter
+					     (expt ,small (length rest))))
              (values (,set-raw-name (make-instance ',name)
                                     quotient)
                      (* remainder ,small))))
@@ -212,10 +216,12 @@ type are in ascending-or-equal order."))
          (defmethod f/ ((value ,name) &rest rest)
            (multiple-value-bind (quotient remainder)
                (if rest
-		   (round (/ (apply #'/ (,raw-name value)
-				    (mapcar #',raw-name rest))
-			     (expt ,small (length rest))))
-		   (round (/ 1 (,raw-name value) ,small) ,small))
+		   (funcall *rounding-method*
+			    (/ (apply #'/ (,raw-name value)
+				      (mapcar #',raw-name rest))
+			       (expt ,small (length rest))))
+		   (funcall *rounding-method*
+			    (/ 1 (,raw-name value) ,small) ,small))
              (values (,set-raw-name (make-instance ',name)
                                     quotient)
                      (* remainder ,small))))
