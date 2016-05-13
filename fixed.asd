@@ -18,3 +18,11 @@
   :depends-on (:fixed)
   :components ((:file "time")))
 
+(asdf:defsystem #:fixed/test
+  :desciption "Test suite for FIXED"
+  :author "Nick Patrick <npatrick04@gmail.com>"
+  :license "MIT"
+  :version "0.0.1"
+  :serial t
+  :depends-on (:fixed :fiveam)
+  :components ((:file "test")))
