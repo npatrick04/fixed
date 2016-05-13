@@ -122,8 +122,8 @@ type are in ascending-or-equal order."))
     ;; If ranges aren't provided, substitute with '* to support its
     ;; use in type specifiers.
     (let ((range-p    (or low high))
-          (low-range  (if low  (ceiling low  small) '*))
-          (high-range (if high (floor   high small) '*)))
+          (low-range  (if low  (ceiling (eval low)  (eval small)) '*))
+          (high-range (if high (floor   (eval high) (eval small)) '*)))
       `(progn
          (defclass ,name (,(if range-p
                                'ordinary-ranged-fp
@@ -231,13 +231,12 @@ type are in ascending-or-equal order."))
 (defmacro defdecimal (name digits &key low high)
   "A short-cut for defining a base-10 decimal type, that also happens
   to be printed correctly."
-  (let ((delta (gensym "DELTA"))
+  (let ((delta (expt 10 (- (eval digits))))
 	(raw-name (intern (concatenate 'string
 				       (symbol-name name)
 				       "-VALUE"))))
-    `(let ((,delta (expt 10 (- ,digits))))
-       (declare (type rational ,delta))
-       (defdelta ,name ,delta :low ,low :high ,high :small ,delta)
+    `(progn
+       (defdelta ,name ,delta :low ,(eval low) :high ,(eval high) :small ,delta)
        (defmethod print-object ((object ,name) stream)
 	 (print-unreadable-object (object stream :type t)
 	   (multiple-value-bind (quotient remainder)

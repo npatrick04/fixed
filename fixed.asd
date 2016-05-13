@@ -4,7 +4,7 @@
   :description "A fixed-point number type."
   :author "Nick Patrick <npatrick04@gmail.com>"
   :license "MIT"
-  :version "0.0.1"
+  :version "0.0.2"
   :serial t
   :components ((:file "package")
                (:file "fixed")))
