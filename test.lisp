@@ -49,13 +49,58 @@
     (is (string= (princ-to-string max)
 		 "#<CENTI-NORM 1.00>"))))
 
-(defdelta foo 1/3)
+(defdelta one-third 1/3)
 
 (test delta
-  (let ((value (make-foo -1)))
-    (is (f= value (make-foo -1)))
+  (let ((value (make-one-third -1)))
+    (is (f= value (make-one-third -1)))
     
     ;; The next smallest power of two from delta
     (is (= (small value) 1/4))
-    (is (= (foo value) -1))))
+    (is (= (one-third value) -1))))
 
+(defdelta Q7.8 1/256 :low -32768/256 :high 32767/256)
+(defdelta Q2 1/4)
+
+(test underlying-representation
+  (let ((1p25 (make-Q7.8 1.25))
+	(1p5  (make-Q7.8 1.5))
+	(1p75 (make-Q7.8 1.75))
+	(-1p25 (make-Q7.8 -1.25))
+	(-1p5  (make-Q7.8 -1.5))
+	(-1p75 (make-Q7.8 -1.75)))
+    (is (= (Q7.8-value  1p25) (round (*  1.25 256)) #x0140))
+    (is (= (Q7.8-value  1p5)  (round (*  1.5 256))  #x0180))
+    (is (= (Q7.8-value  1p75) (round (*  1.75 256)) #x01C0))
+    ;Since we're dealing with negative numbers, lets just get the u16
+    ;representation...  
+    (is (= (ldb (byte 16 0) (Q7.8-value -1p25)) 
+	   (ldb (byte 16 0) (round (* -1.25 256)))
+	   #xFEC0))
+    (is (= (ldb (byte 16 0) (Q7.8-value -1p5))
+	   (ldb (byte 16 0) (round (* -1.5 256)))
+	   #xFE80))
+    (is (= (ldb (byte 16 0) (Q7.8-value -1p75))
+	   (ldb (byte 16 0) (round (* -1.75 256)))
+	   #xFE40))))
+
+(test rounding
+  (let ((five  (make-Q2 5))
+	(three (make-Q2 3)))
+
+    ;; Default
+    (is (f= (f/ five three)
+	    (make-Q2-value 7) ;; (round 20/3)
+	    (make-Q2 5/3)
+	    (make-Q2 1.652)
+	    (make-Q2 1.82)))))
+
+(test floor
+  (let ((five  (make-Q2 5))
+	(three (make-Q2 3))
+	(fixed:*rounding-method* #'floor))
+    (is (f= (f/ five three)
+	    (make-Q2-value 6)
+	    (make-Q2 5/3)
+	    (make-Q2 1.74)
+	    (make-Q2 1.51)))))
