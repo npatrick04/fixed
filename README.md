@@ -1,7 +1,9 @@
 FIXED
 =====
 
-A Common Lisp fixed-point numeric type package intended to be similar to the Ada language type.  Also provided is a utility package (:fixed/real-time) providing a portable fixed-point type representing the internal real time.
+A Common Lisp fixed-point numeric type package intended to be similar to the Ada language type.  The focus is providing a useful abstraction for known reliable precision in a specific range.  This package uses CLOS to encapsulate the underlying type.  It does not provide an efficient mechanism for implementing SIMD operations.
+
+Also provided is a utility package (:fixed/real-time) providing a portable fixed-point type representing the internal real time.
 
 Usage
 =====
