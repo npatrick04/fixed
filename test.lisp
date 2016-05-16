@@ -3,6 +3,9 @@
 
 (in-package #:fixed/test)
 
+(def-suite suite :description "All FIXED fixed-point tests.")
+(in-suite suite)
+
 (defdecimal centi 2)
 (defdecimal centi-norm 2 :low -1 :high 1)
 
@@ -104,3 +107,4 @@
 	    (make-Q2 5/3)
 	    (make-Q2 1.74)
 	    (make-Q2 1.51)))))
+
