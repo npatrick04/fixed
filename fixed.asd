@@ -19,7 +19,7 @@
   :components ((:file "time")))
 
 (asdf:defsystem #:fixed/test
-  :desciption "Test suite for FIXED"
+  :description "Test suite for FIXED"
   :author "Nick Patrick <npatrick04@gmail.com>"
   :license "MIT"
   :version "0.0.1"
