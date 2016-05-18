@@ -17,6 +17,23 @@
 (defclass ordinary-ranged-fp (fp)
   ())
 
+(defgeneric fixedp (object)
+  (:documentation "Is the object an fixed point type.")
+  (:method (object) nil)
+  (:method ((object fp)) t))
+(defgeneric ranged-fixedp (object)
+  (:documentation "Is the object a ranged fixed point type.")
+  (:method (object) nil)
+  (:method ((object ordinary-ranged-fp)) t))
+(defgeneric decimal-fixedp (object)
+  (:documentation "Is the object a decimal fixed point type.")
+  (:method (object) nil))
+(defgeneric ordinary-fixedp (object)
+  (:documentation "Is the object an ordinary fixed point type.")
+  (:method (object) nil)
+  (:method ((object fp))
+    (and (not (decimalp object)) t)))
+
 ;;; Rule of fixed contagion...it's not.
 (defgeneric f= (number &rest rest)
   (:documentation "Determine if fixed-point values of the same
@@ -237,6 +254,7 @@ type are in ascending-or-equal order."))
 				       "-VALUE"))))
     `(progn
        (defdelta ,name ,delta :low ,(eval low) :high ,(eval high) :small ,delta)
+       (defmethod decimal-fixedp ((object ,name)) t)
        (defmethod print-object ((object ,name) stream)
 	 (print-unreadable-object (object stream :type t)
 	   (multiple-value-bind (quotient remainder)

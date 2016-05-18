@@ -12,6 +12,12 @@
    #:ordinary-fp
    #:ordinary-ranged-fp
 
+   ;; Type Predicates
+   #:fixedp
+   #:ranged-fixedp
+   #:decimal-fixedp
+   #:ordinary-fixedp
+
    ;; A couple accessors
    #:small
    #:delta
