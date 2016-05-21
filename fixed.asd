@@ -7,6 +7,7 @@
   :version "0.0.2"
   :serial t
   :components ((:file "package")
+	       (:file "reader")
                (:file "fixed")))
 
 (asdf:defsystem #:fixed/real-time
