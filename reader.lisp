@@ -50,18 +50,16 @@ the stream.  The integer is terminated by any non-digit-char."
   small-value of a corresponding fixed type."
   (expt 2 (cdr q-spec)))
 
+;; TODO: decimal #QD3 maybe
+;; TODO: unsigned #QU3 maybe
 (defun q-reader (stream subchar arg)
   "A Q spec looks like this:
 
-\"#Q3\"   => a type with delta and small of (/ (expt 2 3))
+#Q3   => a type with delta and small of (/ (expt 2 3))
 Return value (cons nil 3)
 
-\"#Q7.8\" => a 16 bit (1+ 7 8) signed type with delta and small of (/ (expt 2 8))
-Return value (cons 7 8)
-
-TODO: decimal #QD3 maybe
-TODO: unsigned #QU3 maybe
-"
+#Q7.8 => a 16 bit (1+ 7 8) signed type with delta and small of (/ (expt 2 8))
+Return value (cons 7 8)"
   (declare (ignore subchar arg)
 	   (optimize debug))
   (let ((spec  (read-q-decimal stream)))
@@ -84,6 +82,27 @@ TODO: unsigned #QU3 maybe
 		   (car value) (cdr sizes) (cdr value)
 		   (car spec)  (cdr spec)))))))
 
-;; (defun install-q-reader ()
-;;   (set-dispatch-macro-character #\# #\Q #'q-reader))
-(set-dispatch-macro-character #\# #\Q #'q-reader)
+(defun install-q-reader ()
+  "A Q spec looks like this:
+#Q3   => a type with delta and small of (/ (expt 2 3))
+#Q7.8 => a 16 bit (1+ 7 8) signed type with delta and small of (/ (expt 2 8))
+
+Use the Q reader to input fixed-point literals in decimal form.  The
+rightmost integer in the Q spec defines the number of fractional
+bits.  The left-most number before the period, if provided, defines
+the number of non-fractional bits.  The sign bit is implied.  
+
+e.g.
+#Q3 1.5    => 3/2
+#Q3 1.25   => 5/4
+#Q3 1.125  => 9/8
+#Q3 1.0625 => Error: 1.0625 is not a Q3
+
+The error in the last one is because 1.0625 requires 4 fractional bits
+to represent.  
+
+#Q4 1.0625 => 17/16
+
+Currently, the reader function returns a ratio representing the
+  decimal value read."
+  (set-dispatch-macro-character #\# #\Q #'q-reader))

@@ -37,5 +37,9 @@
    #:f+
    #:f-
    #:f*
-   #:f/))
+   #:f/
+
+   ;; Reader
+   #:install-q-reader
+   ))
 
