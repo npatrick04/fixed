@@ -45,6 +45,47 @@ A utility package that implements a fixed-point type for internal real time.
 ;; => #<REAL-TIME 15.616>
 ```
 
+Fixed-point Reader Macro
+========================
+
+A fixed-point reader macro provides a method to input fixed-point literals in decimal form.  The reader macro uses the Q format to define a fixed-point spec for the following value.
+
+e.g.
+
+```lisp
+;; Read in fixed-point literals that can be represented exactly by a Q8 spec.
+#Q8 1.5
+;; => 3/2
+
+#Q8 0.0078125
+;; => 1/128
+
+;; Read in a fixed-point literal that can be represented exactly by a Q3 spec, and one that can't.
+#Q3 1.5
+;; => 3/2
+
+#Q3 0.0078125
+;; ERROR: 0.0078125 is not a Q3
+```
+
+Bounds checking can also be performed when the maximum number of useable bits are provided in the Q spec.
+
+```lisp
+;; Read in the most positive Q7.8 value.
+#Q7.8 255.99609375
+;; => 65535/256
+
+#Q7.8 256.0
+;; => Error: 256.0 is not a #Q7.8
+```
+
+Future Work
+===========
+- Fixed-point reader macro improvements
+  - Decimal fixed-point
+  - Read into a superclass of defined delta types
+- Determine if the second return value from rounding operations is in the best form.
+
 License
 =======
 
