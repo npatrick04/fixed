@@ -14,19 +14,23 @@
 (defun read-integer (stream)
   "Read a base-10 integer, leaving whitespace or other characters on
 the stream.  The integer is terminated by any non-digit-char."
-  (let ((result 0))
+  (let ((result 0)
+	(sign (if (char= #\- (peek-char nil stream nil nil))
+		  (progn (read-char stream)
+			 -1)
+		  1)))
     (loop for char = (peek-char nil stream nil nil)
 	 for power from 0
        while (digit-char-p char)
        do (setf result (+ (* 10 result)
 			  (- (char-code (read-char stream nil nil))
 			     (char-code #\0))))
-       finally (return (values result power char)))))
+       finally (return (values (* sign result) power char)))))
 
 (defun read-q-decimal (stream)
   "This reads the integer and fraction into the car and cdr of a cons.
   The second value is a cons of the count of digits in the first and
-  second integers. "  
+  second integers. "
   (multiple-value-bind (value power term) (read-integer stream)
     (multiple-value-prog1
 	(if (char= term #\.)
@@ -35,9 +39,9 @@ the stream.  The integer is terminated by any non-digit-char."
 	      (read-char stream)
 	      ;; Enforce #.#
 	      (assert (digit-char-p (peek-char nil stream)))
-	      (multiple-value-bind (decimal dpower)
+	      (multiple-value-bind (fraction dpower)
 		  (read-integer stream)
-		(values (cons value decimal)
+		(values (cons value (* (signum value) fraction))
 			(cons power dpower))))
 	    ;; Return the 1-part spec
 	    (values (cons nil value)
@@ -79,7 +83,7 @@ Return value (cons 7 8)"
 			 (+ 1 (car spec) (cdr spec)))))
 	    ratio
 	    (error "~D.~v,'0D is not a #Q~:[~D~;~:*~D.~D~]"
-		   (car value) (cdr sizes) (cdr value)
+		   (car value) (cdr sizes) (abs (cdr value))
 		   (car spec)  (cdr spec)))))))
 
 (defun install-q-reader ()
