@@ -109,7 +109,7 @@ is some integer defining the number of digits of precision."
                            (<= (integer-length raw)
                                (+ 1 (car spec) (cdr spec)))))
                   ratio
-                  (error "~D.~v,'0D is not a #Q~:[~D~;~:*~D.~D~]"
+                  (error "~D.~v,'0D is not a #QD~:[~D~;~:*~D.~D~]"
                          (car value) (cdr sizes) (abs (cdr value))
                          (car spec)  (cdr spec))))
             ;; Otherwise just return the full-precision value.
