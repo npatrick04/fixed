@@ -50,6 +50,8 @@ Fixed-point Reader Macro
 
 A fixed-point reader macro provides a method to input fixed-point literals in decimal form.  The reader macro uses the Q format to define a fixed-point spec for the following value.
 
+Install the reader macro as a Q dispatch on # with `(install-q-reader)`.
+
 e.g.
 
 ```lisp
