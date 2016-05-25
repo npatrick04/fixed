@@ -11,40 +11,49 @@
       ((not (member char +whitespace+)))
     (read-char stream nil nil)))
 
-(defun read-integer (stream)
+(defun read-sign (stream)
+  (if (char= #\- (peek-char nil stream))
+      (progn
+        (read-char stream)
+        -1)
+      1))
+
+(defun read-integer (stream &optional (check-sign? t))
   "Read a base-10 integer, leaving whitespace or other characters on
-the stream.  The integer is terminated by any non-digit-char."
+the stream.  The integer is terminated by any non-digit-char.
+Return is (values sign result power terminating-char)"
   (let ((result 0)
-	(sign (if (char= #\- (peek-char nil stream nil nil))
-		  (progn (read-char stream)
-			 -1)
-		  1)))
+	(sign (if check-sign?
+                  (read-sign stream)
+                  1)))
     (loop for char = (peek-char nil stream nil nil)
 	 for power from 0
-       while (digit-char-p char)
+       while (and (characterp char) (digit-char-p char))
        do (setf result (+ (* 10 result)
 			  (- (char-code (read-char stream nil nil))
 			     (char-code #\0))))
-       finally (return (values (* sign result) power char)))))
+       finally (return (values sign result power char)))))
 
 (defun read-q-decimal (stream)
   "This reads the integer and fraction into the car and cdr of a cons.
   The second value is a cons of the count of digits in the first and
   second integers. "
-  (multiple-value-bind (value power term) (read-integer stream)
+  (multiple-value-bind (sign value power term) (read-integer stream)
     (multiple-value-prog1
 	(if (char= term #\.)
 	    ;; This is a two-part spec
 	    (progn
+              ;; Eliminate the decimal point
 	      (read-char stream)
 	      ;; Enforce #.#
 	      (assert (digit-char-p (peek-char nil stream)))
-	      (multiple-value-bind (fraction dpower)
-		  (read-integer stream)
-		(values (cons value (* (signum value) fraction))
+	      (multiple-value-bind (fsign fraction dpower)
+		  (read-integer stream nil)
+                (declare (ignore fsign))
+		(values (cons (* sign value) (* sign fraction))
 			(cons power dpower))))
 	    ;; Return the 1-part spec
-	    (values (cons nil value)
+	    (values (cons nil (* sign value))
 		    (cons nil power)))
       ;; Clean up the rest
       (clear-whitespace stream))))
