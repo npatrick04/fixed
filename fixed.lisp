@@ -14,7 +14,10 @@
 (defclass ordinary-fp (fp)
   ())
 
-(defclass ordinary-ranged-fp (fp)
+(defclass ranged-fp (fp)
+  ())
+
+(defclass decimal-fp (fp)
   ())
 
 (defgeneric fixedp (object)
@@ -24,15 +27,15 @@
 (defgeneric ranged-fixedp (object)
   (:documentation "Is the object a ranged fixed point type.")
   (:method (object) nil)
-  (:method ((object ordinary-ranged-fp)) t))
+  (:method ((object ranged-fp)) t))
 (defgeneric decimal-fixedp (object)
   (:documentation "Is the object a decimal fixed point type.")
-  (:method (object) nil))
+  (:method (object) nil)
+  (:method ((object decimal-fp)) t))
 (defgeneric ordinary-fixedp (object)
   (:documentation "Is the object an ordinary fixed point type.")
   (:method (object) nil)
-  (:method ((object fp))
-    (and (not (decimalp object)) t)))
+  (:method ((object ordinary-fp)) t))
 
 ;;; Rule of fixed contagion...it's not.
 (defgeneric f= (number &rest rest)
@@ -87,35 +90,7 @@ type are in ascending-or-equal order."))
 (defparameter *rounding-method* #'round
   "#'round or #'truncate or similar functions will be used to handle precision loss.")
 
-(defmacro defdelta (name delta &key low high small)
-  "Define a fixed point class named NAME which supports a resolution
-  of DELTA.  The class maintains the value as an
-  (INTEGER LOW-RANGE HIGH-RANGE) where the LOW-RANGE and HIGH_RANGE are
-  determined to provide an engineering-unit value within the range of low
-  to high.
-
-  When SMALL is provided, the resolution of the type is defined to
-  be exactly SMALL.  When only DELTA is provided, the resolution of
-  the type is defined to be the negative power of 2 that is no larger
-  than DELTA.
-
-  e.g. (defdelta foo 1/10) yields a SMALL value of 1/16.
-       (defdelta foo 1/10 :small 1/10) yields a SMALL value of 1/10.
-
-  This definition also produces a set of related functions and generic
-  methods for working with the NAME type.
-- MAKE-NAME: Creates a NAME type with initial value rounded to the
-  provided value. 
-- MAKE-NAME-VALUE: Creates a NAME type with internal value as
-  provided. 
-- SET-NAME: A function to set the internal value according to the
-  engineering unit value provided by rounding.
-- SET-NAME-VALUE: A function to set the internal value.
-- NAME-VALUE: Accessor (setf'able) for the internal value.
-- NAME: Accessor (setf'able) for the engineering unit value.
-
-- Predicates: f= f/= f< f<= f> f>=
-- Math operations: f+ f- f* f/"
+(defmacro %defdelta (name delta low high small super)
   (let ((make-name (intern (concatenate 'string
 					"MAKE-"
 					(symbol-name name))))
@@ -142,9 +117,8 @@ type are in ascending-or-equal order."))
           (low-range  (if low  (ceiling (eval low)  (eval small)) '*))
           (high-range (if high (floor   (eval high) (eval small)) '*)))
       `(progn
-         (defclass ,name (,(if range-p
-                               'ordinary-ranged-fp
-                               'ordinary-fp))
+         (defclass ,name ,(if range-p (list super 'ranged-fp)
+			      `(,super))
            ((value :reader ,raw-name
                    :writer (setf %value)
                    :initarg :value
@@ -245,6 +219,37 @@ type are in ascending-or-equal order."))
 
          ',name))))
 
+(defmacro defdelta (name delta &key low high small)
+  "Define a fixed point class named NAME which supports a resolution
+  of DELTA.  The class maintains the value as an
+  (INTEGER LOW-RANGE HIGH-RANGE) where the LOW-RANGE and HIGH_RANGE are
+  determined to provide an engineering-unit value within the range of low
+  to high.
+
+  When SMALL is provided, the resolution of the type is defined to
+  be exactly SMALL.  When only DELTA is provided, the resolution of
+  the type is defined to be the negative power of 2 that is no larger
+  than DELTA.
+
+  e.g. (defdelta foo 1/10) yields a SMALL value of 1/16.
+       (defdelta foo 1/10 :small 1/10) yields a SMALL value of 1/10.
+
+  This definition also produces a set of related functions and generic
+  methods for working with the NAME type.
+- MAKE-NAME: Creates a NAME type with initial value rounded to the
+  provided value. 
+- MAKE-NAME-VALUE: Creates a NAME type with internal value as
+  provided. 
+- SET-NAME: A function to set the internal value according to the
+  engineering unit value provided by rounding.
+- SET-NAME-VALUE: A function to set the internal value.
+- NAME-VALUE: Accessor (setf'able) for the internal value.
+- NAME: Accessor (setf'able) for the engineering unit value.
+
+- Predicates: f= f/= f< f<= f> f>=
+- Math operations: f+ f- f* f/"
+  `(%defdelta ,name ,delta ,low ,high ,small ordinary-fp))
+
 (defmacro defdecimal (name digits &key low high)
   "A short-cut for defining a base-10 decimal type, that also happens
   to be printed correctly."
@@ -253,7 +258,7 @@ type are in ascending-or-equal order."))
 				       (symbol-name name)
 				       "-VALUE"))))
     `(progn
-       (defdelta ,name ,delta :low ,(eval low) :high ,(eval high) :small ,delta)
+       (%defdelta ,name ,delta ,(eval low) ,(eval high) ,delta decimal-fp)
        (defmethod decimal-fixedp ((object ,name)) t)
        (defmethod print-object ((object ,name) stream)
 	 (print-unreadable-object (object stream :type t)
