@@ -90,6 +90,12 @@ type are in ascending-or-equal order."))
 (defparameter *rounding-method* #'round
   "#'round or #'truncate or similar functions will be used to handle precision loss.")
 
+;;; TODO: determine whether or not the small for this item is either a
+;;; negative power of 2 or decimal. If it's one of those things,
+;;; determine the correct power to use, and verify scrubbing during an
+;;; operation.
+;;; maybe create the intermediate type
+;;; Make that intermediate type a parent of this type maybe.
 (defmacro %defdelta (name delta low high small super)
   (let ((make-name (intern (concatenate 'string
 					"MAKE-"
