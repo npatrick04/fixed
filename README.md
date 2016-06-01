@@ -89,6 +89,9 @@ Bounds checking can also be performed when the maximum number of useable bits ar
 
 > #Q7.8 256.0
 ;; Error: 256.0 is not a #Q7.8
+
+> #Q7.8 -256.0
+-256
 ```
 
 Decimal fixed-point values can be read as well with `#QD` and an optional spec value for digits.
