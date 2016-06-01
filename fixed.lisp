@@ -93,25 +93,20 @@ type are in ascending-or-equal order."))
 (defun pwr-of-2? (number)
   "Is a number a power of 2?  If so, return that power."
   (let ((pwr? (1- (integer-length number))))
-    (when (eq number (ash 1 pwr?))
+    (when (and (not (minusp pwr?))
+               (eq number (ash 1 pwr?)))
       pwr?)))
 
 (defun q-class-name (pwr &optional bits)
   (intern (format nil "Q~:[~;~:*~D.~]~D" bits pwr) (find-package 'fixed)))
 
 (defmacro make-q-class (pwr)
-  `(defclass ,(q-class-name pwr) (ordinary-fp)
-     ()))
+  `(progn
+     (defclass ,(q-class-name pwr) (ordinary-fp)
+       ())))
 
-(defmacro make-q-bit-class (pwr bits)
-  )
-
-;;; TODO: determine whether or not the small for this item is either a
-;;; negative power of 2 or decimal. If it's one of those things,
-;;; determine the correct power to use.
-;;; maybe create the intermediate type
-;;; Make that intermediate type a parent of this type maybe.
 (defmacro %defdelta (name delta low high small super)
+  "Do the work of creating the delta type."
   (let ((make-name (intern (concatenate 'string
 					"MAKE-"
 					(symbol-name name))))
@@ -129,7 +124,6 @@ type are in ascending-or-equal order."))
 	(raw-name (intern (concatenate 'string
 				       (symbol-name name)
 				       "-VALUE")))
-	(super-class (gensym))
         (small (if small (eval small)
 		   (expt 2 (- (ceiling (log (/ delta) 2)))))))
     ;; Calculate the low and high count values
@@ -143,11 +137,12 @@ type are in ascending-or-equal order."))
 			    (q-class-name (pwr-of-2? (/ small))))))
       `(progn
 	 ,(when super-class
-		`(unless (find-class ,super-class nil)
+		`(unless (find-class ',super-class nil)
 		   (make-q-class ,(pwr-of-2? (/ small)))))
          (defclass ,name ,(cond
 			   ((and range-p super-class) (list super-class super 'ranged-fp))
-			   (range-p (list super 'ranged-fp))
+			   (super-class (list super-class super))
+                           (range-p (list super 'ranged-fp))
 			   (t `(,super)))
            ((value :reader ,raw-name
                    :writer (setf %value)
@@ -190,6 +185,11 @@ type are in ascending-or-equal order."))
 			     (slot-value value 'value)))
 	       (values (,set-raw-name fp quotient)
 		       remainder))))
+
+         ;; The setter when sharing a common super-class
+         ,(when super-class
+                `(defmethod ,set-name ((fp ,name) (value ,super-class))
+                   (,set-raw-name fp (slot-value value 'value))))
          (defun ,make-name (value)
            (,set-name (make-instance ',name) value))
          (defun ,make-raw-name (value)
