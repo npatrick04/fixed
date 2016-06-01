@@ -90,10 +90,25 @@ type are in ascending-or-equal order."))
 (defparameter *rounding-method* #'round
   "#'round or #'truncate or similar functions will be used to handle precision loss.")
 
+(defun pwr-of-2? (number)
+  "Is a number a power of 2?  If so, return that power."
+  (let ((pwr? (1- (integer-length number))))
+    (when (eq number (ash 1 pwr?))
+      pwr?)))
+
+(defun q-class-name (pwr &optional bits)
+  (intern (format nil "Q~:[~;~:*~D.~]~D" bits pwr) (find-package 'fixed)))
+
+(defmacro make-q-class (pwr)
+  `(defclass ,(q-class-name pwr) (ordinary-fp)
+     ()))
+
+(defmacro make-q-bit-class (pwr bits)
+  )
+
 ;;; TODO: determine whether or not the small for this item is either a
 ;;; negative power of 2 or decimal. If it's one of those things,
-;;; determine the correct power to use, and verify scrubbing during an
-;;; operation.
+;;; determine the correct power to use.
 ;;; maybe create the intermediate type
 ;;; Make that intermediate type a parent of this type maybe.
 (defmacro %defdelta (name delta low high small super)
@@ -114,17 +129,26 @@ type are in ascending-or-equal order."))
 	(raw-name (intern (concatenate 'string
 				       (symbol-name name)
 				       "-VALUE")))
-        (small (if small small
+	(super-class (gensym))
+        (small (if small (eval small)
 		   (expt 2 (- (ceiling (log (/ delta) 2)))))))
     ;; Calculate the low and high count values
     ;; If ranges aren't provided, substitute with '* to support its
     ;; use in type specifiers.
     (let ((range-p    (or low high))
-          (low-range  (if low  (ceiling (eval low)  (eval small)) '*))
-          (high-range (if high (floor   (eval high) (eval small)) '*)))
+          (low-range  (if low  (ceiling (eval low)  small) '*))
+          (high-range (if high (floor   (eval high) small) '*))
+	  (super-class (and (eq super 'ordinary-fp)
+			    (pwr-of-2? (/ small))
+			    (q-class-name (pwr-of-2? (/ small))))))
       `(progn
-         (defclass ,name ,(if range-p (list super 'ranged-fp)
-			      `(,super))
+	 ,(when super-class
+		`(unless (find-class ,super-class nil)
+		   (make-q-class ,(pwr-of-2? (/ small)))))
+         (defclass ,name ,(cond
+			   ((and range-p super-class) (list super-class super 'ranged-fp))
+			   (range-p (list super 'ranged-fp))
+			   (t `(,super)))
            ((value :reader ,raw-name
                    :writer (setf %value)
                    :initarg :value
