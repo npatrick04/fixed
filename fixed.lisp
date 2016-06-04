@@ -199,12 +199,9 @@ type are in ascending-or-equal order."))
          (defun ,make-raw-name (value)
            (,set-raw-name (make-instance ',name) value))
          (defun ,name (fp)
-           ;; There's got to be a better way...
-           (declare (optimize speed))
-           (* ,delta
-              (funcall *rounding-method* (* (the integer (,raw-name fp))
-				 ,small)
-		       ,delta)))
+	   "Return the number."
+           (* (the integer (,raw-name fp))
+	      ,small))
 
          (defmethod print-object ((object ,name) stream)
            (print-unreadable-object (object stream :type t)
