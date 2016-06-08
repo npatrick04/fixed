@@ -10,6 +10,8 @@
   (:documentation "Return the scaling factor used by fp."))
 (defgeneric delta (fp)
   (:documentation "Return the delta used by fp."))
+(defgeneric size (fp)
+  (:documentation "Return the number of bits required by a ranged fp.  An fp type defined with zero or one limits returns :INFINITY."))
 
 (defclass ordinary-fp (fp)
   ())
@@ -124,6 +126,14 @@ type are in ascending-or-equal order."))
 	(raw-name (intern (concatenate 'string
 				       (symbol-name name)
 				       "-VALUE")))
+	(most-negative-name (intern (concatenate 'string
+						 "+MOST-NEGATIVE-"
+						 (symbol-name name)
+						 "+")))
+	(most-positive-name (intern (concatenate 'string
+						 "+MOST-POSITIVE-"
+						 (symbol-name name)
+						 "+")))
         (small (if small
 		   (eval small)
 		   (expt 2 (- (ceiling (log (/ delta) 2)))))))
@@ -257,6 +267,33 @@ Delta types cannot be created with a SMALL that is larger than the DELTA."
                                     quotient)
                      (* remainder ,small))))
 
+	 ;; The constant things about this type
+	 (unless (and (boundp ',most-positive-name)
+		      (f= ,most-positive-name
+			  (,make-raw-name ,high-range)))
+	   (defconstant ,most-positive-name
+	     ,(if high
+		  `(,make-raw-name ,high-range)
+		  :positive-infinity)))
+	 (unless (and (boundp ',most-negative-name)
+		      (f= ,most-negative-name
+			  (,make-raw-name ,low-range)))
+	   (defconstant ,most-negative-name
+	     ,(if low
+		  `(,make-raw-name ,low-range)
+		  :negative-infinity)))
+
+	 (defmethod size ((fp ,name))
+	   ,(if (and high low)
+		(max (integer-length high-range)
+		     (integer-length low-range))
+		:infinity))
+	 (defmethod size ((fp (eql ',name)))
+	   ,(if (and high low)
+		(max (integer-length high-range)
+		     (integer-length low-range))
+		:infinity))
+	 
          ',name))))
 
 (defmacro defdelta (name delta &key low high small)

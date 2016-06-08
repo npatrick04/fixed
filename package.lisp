@@ -21,6 +21,7 @@
    ;; A couple accessors
    #:small
    #:delta
+   #:size
 
    ;; Predicates
    #:f= 

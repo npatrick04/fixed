@@ -42,7 +42,7 @@ The *small-value* can be any real number, but rationals are recommended to avoid
 
 **defdecimal** is essentially identical to **defdelta** when called with an identical *delta* and *small* that is a power of 10.  The only difference is that values that have a **defdecimal** defined type will always be printed in decimal form.  Values with a **defdelta** defined type may be printed as rationals.
 
-### Type Operations
+### Operations
 **defdelta** and **defdecimal** create a set of functions and generic methods associated with *name*.
 
 | Operation | Type | Description |
@@ -57,6 +57,13 @@ The *small-value* can be any real number, but rationals are recommended to avoid
 | (setf (*name*-value fp) value) | setf     | Set the underlying value of fp |
 | (small fp) or (small '*name*)  | Generic  | Return the *small* when passed '*name* or an instance of *name* |
 | (delta fp) or (delta '*name*)  | Generic  | Return the *delta* when passed '*name* or an instance of *name* |
+| (size fp) or (size '*name*) | Generic | Return the number of bits required to store the underlying value of *name* when it is ranged, otherwise return :INFINITY |
+
+### Constants
+
+*+MOST-POSITIVE-NAME+* is defined for each fixed-point type and is either the most positive value, or :POSITIVE-INFINITY if unlimited.
+
+*+MOST-NEGATIVE-NAME+* is defined for each fixed-point type and is either the most negative value, or :NEGATIVE-INFINITY if unlimited.
 
 ### Math Operations
 Generic Function Predicates:
