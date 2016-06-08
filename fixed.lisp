@@ -124,8 +124,17 @@ type are in ascending-or-equal order."))
 	(raw-name (intern (concatenate 'string
 				       (symbol-name name)
 				       "-VALUE")))
-        (small (if small (eval small)
+        (small (if small
+		   (eval small)
 		   (expt 2 (- (ceiling (log (/ delta) 2)))))))
+
+    ;; Ensure small is valid, which only matters when provided by the user.
+    (unless (>= delta small)
+      (error "Delta type created with SMALL ~A and DELTA ~A.
+Delta types cannot be created with a SMALL that is larger than the DELTA."
+	     small
+	     delta))
+    
     ;; Calculate the low and high count values
     ;; If ranges aren't provided, substitute with '* to support its
     ;; use in type specifiers.
