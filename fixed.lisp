@@ -107,194 +107,182 @@ type are in ascending-or-equal order."))
      (defclass ,(q-class-name pwr) (ordinary-fp)
        ())))
 
+(defun symb (&rest strings)
+  (intern (apply #'concatenate 'string strings)))
+
 (defmacro %defdelta (name delta low high small super)
   "Do the work of creating the delta type."
-  (let ((make-name (intern (concatenate 'string
-					"MAKE-"
-					(symbol-name name))))
-	(make-raw-name (intern (concatenate 'string
-					    "MAKE-"
-					    (symbol-name name)
-					    "-VALUE")))
-	(set-name (intern (concatenate 'string
-				       "SET-"
-				       (symbol-name name))))
-	(set-raw-name (intern (concatenate 'string
-					   "SET-"
-					   (symbol-name name)
-                                           "-VALUE")))
-	(raw-name (intern (concatenate 'string
-				       (symbol-name name)
-				       "-VALUE")))
-	(most-negative-name (intern (concatenate 'string
-						 "+MOST-NEGATIVE-"
-						 (symbol-name name)
-						 "+")))
-	(most-positive-name (intern (concatenate 'string
-						 "+MOST-POSITIVE-"
-						 (symbol-name name)
-						 "+")))
-        (small (if small
-		   (eval small)
-		   (expt 2 (- (ceiling (log (/ delta) 2)))))))
+  (let ((namestring (symbol-name name)))
+    (let ((make-name          (symb "MAKE-" namestring))
+          (make-raw-name      (symb "MAKE-" namestring "-VALUE"))
+          (set-name           (symb "SET-" namestring))
+          (set-raw-name       (symb "SET-" namestring "-VALUE"))
+          (raw-name           (symb namestring "-VALUE"))
+          (most-negative-name (symb "+MOST-NEGATIVE-" namestring "+"))
+          (most-positive-name (symb "+MOST-POSITIVE-" namestring "+"))
+          (small (if small
+                     (eval small)
+                     (expt 2 (- (ceiling (log (/ delta) 2)))))))
 
-    ;; Ensure small is valid, which only matters when provided by the user.
-    (unless (>= delta small)
-      (error "Delta type created with SMALL ~A and DELTA ~A.
+      ;; Ensure small is valid, which only matters when provided by the user.
+      (unless (>= delta small)
+        (error "Delta type created with SMALL ~A and DELTA ~A.
 Delta types cannot be created with a SMALL that is larger than the DELTA."
-	     small
-	     delta))
-    
-    ;; Calculate the low and high count values
-    ;; If ranges aren't provided, substitute with '* to support its
-    ;; use in type specifiers.
-    (let ((range-p    (or low high))
-          (low-range  (if low  (ceiling (eval low)  small) '*))
-          (high-range (if high (floor   (eval high) small) '*))
-	  (super-class (and (eq super 'ordinary-fp)
-			    (pwr-of-2? (/ small))
-			    (q-class-name (pwr-of-2? (/ small))))))
-      `(progn
-	 ,(when super-class
-		`(unless (find-class ',super-class nil)
-		   (make-q-class ,(pwr-of-2? (/ small)))))
-         (defclass ,name ,(cond
-			   ((and range-p super-class) (list super-class super 'ranged-fp))
-			   (super-class (list super-class super))
-                           (range-p (list super 'ranged-fp))
-			   (t `(,super)))
-           ((value :reader ,raw-name
-                   :writer (setf %value)
-                   :initarg :value
-                   :type ,(if range-p
-                              `(integer ,low-range ,high-range)
-                              `integer))))
-	 (defmethod small ((fp ,name))
-	   ,small)
-	 (defmethod small ((fp (eql ',name)))
-	   ,small)
-	 (defmethod delta ((fp ,name))
-	   ,delta)
-         (defmethod delta ((fp (eql ',name)))
-	   ,delta)
-	 (defun ,set-raw-name (fp value)
-	   (declare (type ,name fp)
-		    (type integer value))
-           ,(if range-p
-                `(setf (%value fp)
-                       (the (integer ,low-range ,high-range)
-                            value))
-                `(setf (%value fp)
-                       (the integer value)))
-           fp)
-	 (defgeneric ,set-name (fp value)
-	   (:documentation "Set the fp to some value"))
-	 (defmethod ,set-name ((fp ,name) (value real))
-	   (multiple-value-bind
-		 (quotient remainder) (funcall *rounding-method* value ,small)
-	     (values (,set-raw-name fp quotient)
-		     remainder)))
-	 (defmethod ,set-name ((fp ,name) (value ,name))
-	   ;; Just set it equal and return the fp.
-	   (setf (%value fp) (,raw-name value))
-	   (values fp 0))
-	 (defmethod ,set-name ((fp ,name) (value fp))
-	   ;; Now it's interesting, another fp type, but not name.
-	   (let ((conversion-ratio (/ (small value) (small fp))))
-	     (multiple-value-bind
-		   (quotient remainder)
-		 (funcall *rounding-method*
-			  (* conversion-ratio
-			     (slot-value value 'value)))
-	       (values (,set-raw-name fp quotient)
-		       remainder))))
+               small
+               delta))
+      
+      ;; Calculate the low and high count values
+      ;; If ranges aren't provided, substitute with '* to support its
+      ;; use in type specifiers.
+      (let ((range-p    (or low high))
+            (low-range  (if low  (ceiling (eval low)  small) '*))
+            (high-range (if high (floor   (eval high) small) '*))
+            (super-class (and (eq super 'ordinary-fp)
+                              (pwr-of-2? (/ small))
+                              (q-class-name (pwr-of-2? (/ small))))))
+        `(progn
+           ,(when super-class
+              `(unless (find-class ',super-class nil)
+                 (make-q-class ,(pwr-of-2? (/ small)))))
+           (defclass ,name ,(cond
+                              ((and range-p super-class) (list super-class super 'ranged-fp))
+                              (super-class (list super-class super))
+                              (range-p (list super 'ranged-fp))
+                              (t `(,super)))
+             ((value :reader ,raw-name
+                     :writer (setf %value)
+                     :initarg :value
+                     :type ,(if range-p
+                                `(integer ,low-range ,high-range)
+                                `integer))))
+           (defmethod small ((fp ,name))
+             ,small)
+           (defmethod small ((fp (eql ',name)))
+             ,small)
+           (defmethod delta ((fp ,name))
+             ,delta)
+           (defmethod delta ((fp (eql ',name)))
+             ,delta)
+           (defun ,set-raw-name (fp value)
+             (declare (type ,name fp)
+                      (type integer value))
+             ,(if range-p
+                  `(setf (%value fp)
+                         (the (integer ,low-range ,high-range)
+                              value))
+                  `(setf (%value fp)
+                         (the integer value)))
+             fp)
+           (defgeneric ,set-name (fp value)
+             (:documentation "Set the fp to some value"))
+           (defmethod ,set-name ((fp ,name) (value real))
+             (multiple-value-bind
+                   (quotient remainder) (funcall *rounding-method* value ,small)
+               (values (,set-raw-name fp quotient)
+                       remainder)))
+           (defmethod ,set-name ((fp ,name) (value ,name))
+             ;; Just set it equal and return the fp.
+             (setf (%value fp) (,raw-name value))
+             (values fp 0))
+           (defmethod ,set-name ((fp ,name) (value fp))
+             ;; Now it's interesting, another fp type, but not name.
+             (let ((conversion-ratio (/ (small value) (small fp))))
+               (multiple-value-bind
+                     (quotient remainder)
+                   (funcall *rounding-method*
+                            (* conversion-ratio
+                               (slot-value value 'value)))
+                 (values (,set-raw-name fp quotient)
+                         remainder))))
 
-         ;; The setter when sharing a common super-class
-         ,(when super-class
-                `(defmethod ,set-name ((fp ,name) (value ,super-class))
-                   (,set-raw-name fp (slot-value value 'value))))
-         (defun ,make-name (value)
-           (,set-name (make-instance ',name) value))
-         (defun ,make-raw-name (value)
-           (,set-raw-name (make-instance ',name) value))
-         (defun ,name (fp)
-	   "Return the number."
-           (* (the integer (,raw-name fp))
-	      ,small))
+           ;; The setter when sharing a common super-class
+           ,(when super-class
+              `(defmethod ,set-name ((fp ,name) (value ,super-class))
+                 (,set-raw-name fp (slot-value value 'value))))
+           (defun ,make-name (value)
+             (,set-name (make-instance ',name) value))
+           (defun ,make-raw-name (value)
+             (,set-raw-name (make-instance ',name) value))
+           (defun ,name (fp)
+             "Return the number."
+             (* (the integer (,raw-name fp))
+                ,small))
 
-         (defmethod print-object ((object ,name) stream)
-           (print-unreadable-object (object stream :type t)
-             (format stream "~A" (,name object))))
+           (defmethod print-object ((object ,name) stream)
+             (print-unreadable-object (object stream :type t)
+               (format stream "~A" (,name object))))
 
-         (defsetf ,name ,set-name)
-         (defsetf ,raw-name ,set-raw-name)
+           (defsetf ,name ,set-name)
+           (defsetf ,raw-name ,set-raw-name)
 
-         (predicate f=  ,name ,raw-name =)
-         (predicate f/= ,name ,raw-name /=)
-         (predicate f>  ,name ,raw-name >)
-         (predicate f>= ,name ,raw-name >=)
-         (predicate f<  ,name ,raw-name <)
-         (predicate f<= ,name ,raw-name <=)
+           (predicate f=  ,name ,raw-name =)
+           (predicate f/= ,name ,raw-name /=)
+           (predicate f>  ,name ,raw-name >)
+           (predicate f>= ,name ,raw-name >=)
+           (predicate f<  ,name ,raw-name <)
+           (predicate f<= ,name ,raw-name <=)
 
-         (math f+ ,name ,set-raw-name ,raw-name +)
-         (math f- ,name ,set-raw-name ,raw-name -)
-         ;; * and / are not as simple
-         ;; v = i1 * small
-         ;; v1 * v2 == i1 * small * i2 * small
-         (defmethod f* ((value ,name) &rest rest)
-           (multiple-value-bind (quotient remainder)
-               (funcall *rounding-method* (* (apply #'*	; Product of the integral parts
-						    (,raw-name value)
-						    (mapcar #',raw-name rest))
-					     ;; multiplied by small for each rest parameter
-					     (expt ,small (length rest))))
-             (values (,set-raw-name (make-instance ',name)
-                                    quotient)
-                     (* remainder ,small))))
-         ;; v = i * small
-         ;; (/ v1 v2) == (* v1 small) / (* v2 small)
-         ;; (/ v1 v2 v3) == (* v1 small) / (* v2 v3 small small)
-         (defmethod f/ ((value ,name) &rest rest)
-           (multiple-value-bind (quotient remainder)
-               (if rest
-		   (funcall *rounding-method*
-			    (/ (apply #'/ (,raw-name value)
-				      (mapcar #',raw-name rest))
-			       (expt ,small (length rest))))
-		   (funcall *rounding-method*
-			    (/ 1 (,raw-name value) ,small) ,small))
-             (values (,set-raw-name (make-instance ',name)
-                                    quotient)
-                     (* remainder ,small))))
+           (math f+ ,name ,set-raw-name ,raw-name +)
+           (math f- ,name ,set-raw-name ,raw-name -)
+           ;; * and / are not as simple
+           ;; v = i1 * small
+           ;; v1 * v2 == i1 * small * i2 * small
+           (defmethod f* ((value ,name) &rest rest)
+             (multiple-value-bind (quotient remainder)
+                 (funcall *rounding-method* (* (apply #'*	; Product of the integral parts
+                                                      (,raw-name value)
+                                                      (mapcar #',raw-name rest))
+                                               ;; multiplied by small for each rest parameter
+                                               (expt ,small (length rest))))
+               (values (,set-raw-name (make-instance ',name)
+                                      quotient)
+                       (* remainder ,small))))
+           ;; v = i * small
+           ;; (/ v1 v2) == (* v1 small) / (* v2 small)
+           ;; (/ v1 v2 v3) == (* v1 small) / (* v2 v3 small small)
+           (defmethod f/ ((value ,name) &rest rest)
+             (multiple-value-bind (quotient remainder)
+                 (if rest
+                     (funcall *rounding-method*
+                              (/ (apply #'/ (,raw-name value)
+                                        (mapcar #',raw-name rest))
+                                 (expt ,small (length rest))))
+                     (funcall *rounding-method*
+                              (/ 1 (,raw-name value) ,small) ,small))
+               (values (,set-raw-name (make-instance ',name)
+                                      quotient)
+                       (* remainder ,small))))
 
-	 ;; The constant things about this type
-	 (unless (and (boundp ',most-positive-name)
-		      (f= ,most-positive-name
-			  (,make-raw-name ,high-range)))
-	   (defconstant ,most-positive-name
-	     ,(if high
-		  `(,make-raw-name ,high-range)
-		  :positive-infinity)))
-	 (unless (and (boundp ',most-negative-name)
-		      (f= ,most-negative-name
-			  (,make-raw-name ,low-range)))
-	   (defconstant ,most-negative-name
-	     ,(if low
-		  `(,make-raw-name ,low-range)
-		  :negative-infinity)))
+           ;; The constant things about this type
+           (unless (and (boundp ',most-positive-name)
+                        (or (symbolp ,most-positive-name)
+                            (f= ,most-positive-name
+                                (,make-raw-name ,high-range))))
+             (defconstant ,most-positive-name
+               ,(if high
+                    `(,make-raw-name ,high-range)
+                    :positive-infinity)))
+           (unless (and (boundp ',most-negative-name)
+                        (or (symbolp ,most-positive-name)
+                            (f= ,most-negative-name
+                                (,make-raw-name ,low-range))))
+             (defconstant ,most-negative-name
+               ,(if low
+                    `(,make-raw-name ,low-range)
+                    :negative-infinity)))
 
-	 (defmethod size ((fp ,name))
-	   ,(if (and high low)
-		(max (integer-length high-range)
-		     (integer-length low-range))
-		:infinity))
-	 (defmethod size ((fp (eql ',name)))
-	   ,(if (and high low)
-		(max (integer-length high-range)
-		     (integer-length low-range))
-		:infinity))
-	 
-         ',name))))
+           (defmethod size ((fp ,name))
+             ,(if (and high low)
+                  (max (integer-length high-range)
+                       (integer-length low-range))
+                  :infinity))
+           (defmethod size ((fp (eql ',name)))
+             ,(if (and high low)
+                  (max (integer-length high-range)
+                       (integer-length low-range))
+                  :infinity))
+           
+           ',name)))))
 
 (defmacro defdelta (name delta &key low high small)
   "Define a fixed point class named NAME which supports a resolution
@@ -325,18 +313,18 @@ Delta types cannot be created with a SMALL that is larger than the DELTA."
 
 - Predicates: f= f/= f< f<= f> f>=
 - Math operations: f+ f- f* f/"
-  `(%defdelta ,name ,delta ,low ,high ,small ordinary-fp))
+  `(prog1
+     (%defdelta ,name ,delta ,low ,high ,small ordinary-fp)
+     (defmethod ordinary-fixedp ((object (eql ',name))) t)))
 
 (defmacro defdecimal (name digits &key low high)
   "A short-cut for defining a base-10 decimal type, that also happens
   to be printed correctly."
   (let ((delta (expt 10 (- (eval digits))))
-	(raw-name (intern (concatenate 'string
-				       (symbol-name name)
-				       "-VALUE"))))
-    `(progn
+	(raw-name (symb (symbol-name name) "-VALUE")))
+    `(prog1
        (%defdelta ,name ,delta ,(eval low) ,(eval high) ,delta decimal-fp)
-       (defmethod decimal-fixedp ((object ,name)) t)
+       (defmethod decimal-fixedp ((object (eql ',name))) t)
        (defmethod print-object ((object ,name) stream)
 	 (print-unreadable-object (object stream :type t)
 	   (multiple-value-bind (quotient remainder)

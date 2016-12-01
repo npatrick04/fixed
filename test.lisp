@@ -108,7 +108,8 @@
 	    (make-Q2 1.74)
 	    (make-Q2 1.51)))))
 
-(install-q-reader)
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (install-q-reader))
 
 (test reader
   (is (= 1/4 #Q2 0.25))
@@ -118,3 +119,25 @@
   (is (= -1/4 #q2 -0.25))
   ;; are these all equal
   (is (= 0.00006103515625 1/16384 #q14 0.00006103515625)))
+
+(test named-reads
+  (is (f= #q q7.8 127.5
+          (make-q7.8 127.5)
+          (make-q7.8-value (round (* 127.5 256)))))
+  (is (f= #q q7.8 -127.5
+          (make-q7.8 -127.5)))
+  ;; Too big
+  (signals error (read-from-string "#q q7.8 128.0"))
+  ;; Minimum
+  (finishes (read-from-string "#q q7.8 -128.0"))
+  ;; Too little
+  (signals error (read-from-string "#q q7.8 -128.00390625"))
+
+  ;; Decimal type
+  (is (f= #qcenti 1.23 (make-centi 1.23) (make-centi-value 123)))
+  (signals error (read-from-string "#qcenti 1.234"))
+  (signals error (read-from-string "#qcenti -0.001"))
+  (signals error (read-from-string "#qcenti-norm 1.01"))
+  (signals error (read-from-string "#qcenti-norm -1.01"))
+  (finishes (read-from-string "#qcenti-norm 1.00"))
+  (finishes (read-from-string "#qcenti-norm -1.00")))

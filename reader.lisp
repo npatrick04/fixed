@@ -64,78 +64,129 @@ Return is (values sign result power terminating-char)"
   (declare (type (cons t integer) q-spec))
   (expt 2 (cdr q-spec)))
 
-(defun read-ordinary-q (stream)
+(defun q-ratio (value sizes)
+  (+ (car value)
+     (/ (cdr value)
+        (expt 10 (cdr sizes)))))
+
+(defun ratio-meets-spec? (raw spec)
+  (and (integerp raw)
+       ;; If it's a two-part spec...
+       (or (not (car spec))
+           ;; and fits in the spec
+           (<= (integer-length raw)
+               (+ 1 (car spec) (cdr spec))))))
+
+(defun read-ordinary-q-decimal (stream spec)
   "Read an ordinary fixed-point value."
   (declare (optimize debug))
-  (let ((spec  (read-q-decimal stream)))
-    (multiple-value-bind (value sizes) (read-q-decimal stream)
-      ;; Construct the ratio
-      (let* ((ratio (+ (car value)
-		       (/ (cdr value)
-			  (expt 10 (cdr sizes)))))
-	     ;; Generate the spec-based underlying value
-	     (raw (* ratio (spec-small spec))))
-	;; Verify the ratio meets the spec
-	(if (and (integerp raw)
-		 ;; If it's a two-part spec...
-		 (or (not (car spec))
-		     ;; and fits in the spec
-		     (<= (integer-length raw)
-			 (+ 1 (car spec) (cdr spec)))))
-	    ratio
-	    (error "~D.~v,'0D is not a #Q~:[~D~;~:*~D.~D~]"
-		   (car value) (cdr sizes) (abs (cdr value))
-		   (car spec)  (cdr spec)))))))
+  (multiple-value-bind (value sizes) (read-q-decimal stream)
+    ;; Construct the ratio
+    (let* ((ratio (q-ratio value sizes))
+           ;; Generate the spec-based underlying value
+           (raw (* ratio (spec-small spec))))
+      ;; Verify the ratio meets the spec
+      (if (ratio-meets-spec? raw spec)
+          ratio
+          (error "~D.~v,'0D is not a #Q~:[~D~;~:*~D.~D~]"
+                 (car value) (cdr sizes) (abs (cdr value))
+                 (car spec)  (cdr spec))))))
+
+(defun read-ordinary-q (stream)
+  "Read an ordinary fixed-point value."
+  (read-ordinary-q-decimal stream (read-q-decimal stream)))
+
+(defun read-decimal-q-decimal (stream spec spec-sizes)
+  "Read a decimal #QD with infinite precision, or #QDvalue where value
+is some integer defining the number of digits of precision."
+  (declare (optimize debug))
+  (multiple-value-bind (value sizes) (read-q-decimal stream)
+    ;; Construct the ratio
+    (let* ((ratio (q-ratio value sizes)))
+      ;; If there is a decimal digit spec value...
+      (if (plusp (cdr spec-sizes))
+          ;; Generate the spec-based underlying value
+          (let ((raw (* ratio (expt 10 (cdr spec)))))
+            ;; Verify the ratio meets the spec
+            (if (ratio-meets-spec? raw spec)
+                ratio
+                (error "~D.~v,'0D is not a #QD~:[~D~;~:*~D.~D~]"
+                       (car value) (cdr sizes) (abs (cdr value))
+                       (car spec)  (cdr spec))))
+          ;; Otherwise just return the full-precision value.
+          ratio))))
 
 (defun read-decimal-q (stream)
   "Read a decimal #QD with infinite precision, or #QDvalue where value
 is some integer defining the number of digits of precision."
   (declare (optimize debug))
   (multiple-value-bind (spec spec-sizes) (read-q-decimal stream)
-    (multiple-value-bind (value sizes) (read-q-decimal stream)
-      ;; Construct the ratio
-      (let* ((ratio (+ (car value)
-		       (/ (cdr value)
-			  (expt 10 (cdr sizes))))))
-        ;; If there is a decimal digit spec value...
-        (if (plusp (cdr spec-sizes))
-            ;; Generate the spec-based underlying value
-            (let ((raw (* ratio (expt 10 (cdr spec)))))
-              ;; Verify the ratio meets the spec
-              (if (and (integerp raw)
-                       ;; If it's a two-part spec...
-                       (or (not (car spec))
-                           ;; and fits in the spec
-                           (<= (integer-length raw)
-                               (+ 1 (car spec) (cdr spec)))))
-                  ratio
-                  (error "~D.~v,'0D is not a #QD~:[~D~;~:*~D.~D~]"
-                         (car value) (cdr sizes) (abs (cdr value))
-                         (car spec)  (cdr spec))))
-            ;; Otherwise just return the full-precision value.
-            ratio)))))
+    (read-decimal-q-decimal stream spec spec-sizes)))
 
-;; TODO: decimal #QD3 maybe
+(define-condition q-reader-error (reader-error)
+  ())
+
+(defun read-q-character-spec (stream)
+  "Read a user-specified Q type, or the D for a decimal type.
+If the first character read is #\D or #\d, followed by a digit
+character, then the result is 'D, indicating a decimal type.
+
+Otherwise, the character is unread, the READ function is called,
+returning the resultant symbol"
+  (let ((first-char (read-char stream)))
+    (if (and (char= (char-upcase first-char) #\D)
+             (digit-char-p (peek-char nil stream)))
+        'd
+        (progn
+          (unread-char first-char stream)
+          (read stream)))))
+
+(defun read-user-decimal (decimal-type stream)
+  (let* ((make-name (symb "MAKE-" (symbol-name decimal-type)))
+         (small (small decimal-type))
+         (spec  (cons nil (round (log (/ small) 10))))
+         (sizes (cons nil (length (format nil "~D" (cdr spec))))))
+    (let ((ratio (read-decimal-q-decimal stream spec sizes)))
+      (funcall (symbol-function make-name) ratio))))
+
+(defun read-user-ordinary (ordinary-type stream)
+  (let* ((make-name (symb "MAKE-" (symbol-name ordinary-type)))
+         (small (small ordinary-type))
+         (spec (cons nil (round (log (/ small) 2)))))
+    (let ((ratio (read-ordinary-q-decimal stream spec)))
+      (funcall (symbol-function make-name) ratio))))
+
 ;; TODO: unsigned #QU3 maybe
 (defun q-reader (stream subchar arg)
-  "A Q spec looks like this:
+  "A generic Q spec looks like this:
 
 #Q3   => a type with delta and small of (/ (expt 2 3))
 Return value (cons nil 3)
 
 #Q7.8 => a 16 bit (1+ 7 8) signed type with delta and small of (/ (expt 2 8))
-Return value (cons 7 8)"
+Return value (cons 7 8)
+
+Alternatively, a generic Q spec could be in decimal form:
+
+#QD2 123.45 => 12345/100"
   (declare (ignore subchar arg))
   (let ((first-char (peek-char nil stream)))
-    (cond
-      ((digit-char-p first-char)
-       (read-ordinary-q stream))
-      ((char= (char-upcase first-char) #\D)
-       ;; Ignore this character...
-       (read-char stream)
-       (read-decimal-q stream)))))
+    (if (digit-char-p first-char)
+        (read-ordinary-q stream)
+        ;; It must be either a user-defined fixed type or a decimal type
+        (let ((the-type (read-q-character-spec stream)))
+          (if (symbolp the-type)
+              (cond
+                ((decimal-fixedp the-type)
+                 (read-user-decimal the-type stream))
+                ((ordinary-fixedp the-type)
+                 (read-user-ordinary the-type stream))
+                ((eq the-type 'd)
+                 (read-decimal-q stream))
+                (t
+                 (error 'q-reader-error))))))))
 
-(defun install-q-reader ()
+(defun install-q-reader (&optional (readtable *readtable*))
   "A Q spec looks like this:
 #Q3   => a type with delta and small of (/ (expt 2 3))
 #Q7.8 => a 16 bit (1+ 7 8) signed type with delta and small of (/ (expt 2 8))
@@ -158,4 +209,4 @@ to represent.
 
 Currently, the reader function returns a ratio representing the
   decimal value read."
-  (set-dispatch-macro-character #\# #\Q #'q-reader))
+  (set-dispatch-macro-character #\# #\Q #'q-reader readtable))
