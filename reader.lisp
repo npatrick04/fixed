@@ -2,6 +2,22 @@
 
 (in-package #:fixed)
 
+(define-condition q-reader-error (error)
+  ())
+
+(define-condition q-reader-unknown-fixed-type (q-reader-error)
+  ((symbol :reader unknown-fixed-type-symbol
+           :initarg :symbol)))
+
+(define-condition q-reader-non-symbol (q-reader-error)
+  ())
+
+(define-condition q-reader-invalid-value (q-reader-error)
+  ((message :reader q-reader-invalid-value-message
+            :initarg :message))
+  (:report (lambda (c s)
+             (princ (q-reader-invalid-value-message c) s))))
+
 (unless (boundp '+whitespace+)
   (defconstant +whitespace+ '(#\space #\tab #\linefeed #\return #\page)))
 
@@ -75,7 +91,7 @@ Return is (values sign result power terminating-char)"
        (or (not (car spec))
            ;; and fits in the spec
            (<= (integer-length raw)
-               (+ 1 (car spec) (cdr spec))))))
+               (+ (car spec) (cdr spec))))))
 
 (defun read-ordinary-q-decimal (stream spec)
   "Read an ordinary fixed-point value."
@@ -88,9 +104,11 @@ Return is (values sign result power terminating-char)"
       ;; Verify the ratio meets the spec
       (if (ratio-meets-spec? raw spec)
           ratio
-          (error "~D.~v,'0D is not a #Q~:[~D~;~:*~D.~D~]"
-                 (car value) (cdr sizes) (abs (cdr value))
-                 (car spec)  (cdr spec))))))
+          (error 'q-reader-invalid-value
+                 :message
+                 (format nil "~D.~v,'0D is not a #Q~:[~D~;~:*~D.~D~]"
+                         (car value) (cdr sizes) (abs (cdr value))
+                         (car spec)  (abs (cdr spec))))))))
 
 (defun read-ordinary-q (stream)
   "Read an ordinary fixed-point value."
@@ -122,9 +140,6 @@ is some integer defining the number of digits of precision."
   (declare (optimize debug))
   (multiple-value-bind (spec spec-sizes) (read-q-decimal stream)
     (read-decimal-q-decimal stream spec spec-sizes)))
-
-(define-condition q-reader-error (reader-error)
-  ())
 
 (defun read-q-character-spec (stream)
   "Read a user-specified Q type, or the D for a decimal type.
@@ -171,7 +186,8 @@ Alternatively, a generic Q spec could be in decimal form:
 #QD2 123.45 => 12345/100"
   (declare (ignore subchar arg))
   (let ((first-char (peek-char nil stream)))
-    (if (digit-char-p first-char)
+    (if (or (digit-char-p first-char)
+            (char= first-char #\-))
         (read-ordinary-q stream)
         ;; It must be either a user-defined fixed type or a decimal type
         (let ((the-type (read-q-character-spec stream)))
@@ -184,12 +200,23 @@ Alternatively, a generic Q spec could be in decimal form:
                 ((eq the-type 'd)
                  (read-decimal-q stream))
                 (t
-                 (error 'q-reader-error))))))))
+                 (error 'q-reader-unknown-fixed-type :symbol the-type)))
+              (error 'q-reader-non-symbol))))))
 
 (defun install-q-reader (&optional (readtable *readtable*))
-  "A Q spec looks like this:
+  "The Q reader can be used to read fixed point types directly with
+exact precision.  Generic fixed point types will be read directly
+as rational values, and are suitable as an argument for a compatible
+fixed point type using the MAKE-NAME constructor, where NAME is
+the name of the fixed point type.
+
+A generic ordinary fixed point Q spec looks like this:
 #Q3   => a type with delta and small of (/ (expt 2 3))
 #Q7.8 => a 16 bit (1+ 7 8) signed type with delta and small of (/ (expt 2 8))
+
+A generic decimal fixed point Q spec looks like this:
+#QD3   => a type with delta and small of 1/1000
+#QD3.1 => a 5 bit type with delta and small of 1/10, i.e. min == -
 
 Use the Q reader to input fixed-point literals in decimal form.  The
 rightmost integer in the Q spec defines the number of fractional

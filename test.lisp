@@ -6,8 +6,14 @@
 (def-suite suite :description "All FIXED fixed-point tests.")
 (in-suite suite)
 
-(defdecimal centi 2)
-(defdecimal centi-norm 2 :low -1 :high 1)
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defdecimal centi 2)
+  (defdecimal centi-norm 2 :low -1 :high 1)
+
+  (defdelta one-third 1/3)
+
+  (defdelta Q7.8 1/256 :low -32768/256 :high 32767/256)
+  (defdelta Q2 1/4))
 
 (test decimal
   "Test the centi decimal type."
@@ -52,8 +58,6 @@
     (is (string= (princ-to-string max)
 		 "#<CENTI-NORM 1.00>"))))
 
-(defdelta one-third 1/3)
-
 (test delta
   (let ((value (make-one-third -1)))
     (is (f= value (make-one-third -1)))
@@ -61,9 +65,6 @@
     ;; The next smallest power of two from delta
     (is (= (small value) 1/4))
     (is (= (one-third value) -1))))
-
-(defdelta Q7.8 1/256 :low -32768/256 :high 32767/256)
-(defdelta Q2 1/4)
 
 (test underlying-representation
   (let ((1p25 (make-Q7.8 1.25))
@@ -141,3 +142,79 @@
   (signals error (read-from-string "#qcenti-norm -1.01"))
   (finishes (read-from-string "#qcenti-norm 1.00"))
   (finishes (read-from-string "#qcenti-norm -1.00")))
+
+;;; get it to be tail recursive...
+(defun print-decimal-fraction (stream remaining-chars remainder denominator)
+  (when (plusp remaining-chars)
+    (multiple-value-bind (integral new-remainder) (truncate remainder denominator)
+      (unless (and (= 0 integral)
+                   (= 0 new-remainder))
+        (princ integral stream)
+        (print-decimal-fraction stream
+                                (1- remaining-chars)
+                                (* 10 new-remainder)
+                                denominator)))))
+
+(defun rational-to-decimal (rat &optional (maximum-width 50))
+  "Return a string representing a rational converted to decimal form up to MAXIMUM-WIDTH characters."
+  (let ((den (denominator rat)))
+    (with-output-to-string (out)
+      (multiple-value-bind (integral remainder) (truncate (numerator rat) den)
+        ;; Get the negative sign for less-than-zero values
+        (when (and (minusp rat) (zerop integral))
+          (princ "-" out))
+        (princ integral out)
+        (let ((remaining-chars (file-position out)))
+          (if (< remaining-chars maximum-width)
+              (progn
+                (princ "." out)
+                (if (and (zerop remainder)
+                         (plusp (- maximum-width remaining-chars 1)))
+                    (princ 0 out)
+                    (print-decimal-fraction out
+                                            (- maximum-width remaining-chars 1)
+                                            (* 10 (abs remainder))
+                                            den)))
+              (error "Over ~A characters required for integral part of rational" maximum-width)))))))
+
+(defun generate-twos-complement-test (total-bits fractional-bits)
+  "Return 3 values:
+1 A list of the reader strings for the entire enumeration of valid values
+2 A string for one over the maximum limit
+3 A string for one under the minimum limit"
+  (let* ((front (- total-bits fractional-bits 1))
+         (qspec (format nil "#q~d.~d" front fractional-bits))
+         (minimum (- (expt 2 (1- total-bits))))
+         (maximum (1- (expt 2 (1- total-bits))))
+         (denominator (expt 2 fractional-bits)))
+    ;; (print minimum)
+    ;; (print maximum)
+    (values
+     (loop for value from minimum to maximum
+        collect (format nil "~A ~A" qspec (rational-to-decimal (/ value denominator))))
+     ;; Maximum+1
+     (format nil "~A ~A" qspec (rational-to-decimal (/ (1+ maximum) denominator)))
+     ;; Minimum-1
+     (format nil "~A ~A" qspec (rational-to-decimal (/ (1- minimum) denominator))))))
+
+(defun test-all-q-reader-values (total-bits fractional-bits)
+  (multiple-value-bind (valid-values max+1 min-1)
+      (generate-twos-complement-test total-bits fractional-bits)
+    (dolist (value-string valid-values)
+      ;(format t "~&testing ~A " value-string)
+      (finishes (read-from-string value-string)))
+    (signals fixed:q-reader-invalid-value (read-from-string max+1))
+    (signals fixed:q-reader-invalid-value (read-from-string min-1))))
+
+(test reader-overflow-3bit
+  "Verify the reader for different 3-bit ranges."
+  (test-all-q-reader-values 3 1)
+  (test-all-q-reader-values 3 2)
+#+nil-because-it-generates-negative-spec  (test-all-q-reader-values 3 3))
+
+(test reader-overflow-8bit
+  "Verify the reader for different 8-bit ranges."
+  (test-all-q-reader-values 8 1)
+  (test-all-q-reader-values 8 3)
+  (test-all-q-reader-values 8 4)
+#+nil-because-it-generates-negative-spec  (test-all-q-reader-values 8 8))

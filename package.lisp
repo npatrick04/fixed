@@ -42,5 +42,11 @@
 
    ;; Reader
    #:install-q-reader
+
+   ;; Reader errors
+   #:q-reader-error
+   #:q-reader-unknown-fixed-type
+   #:q-reader-non-symbol
+   #:q-reader-invalid-value
    ))
 

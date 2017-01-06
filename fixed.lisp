@@ -13,6 +13,12 @@
 (defgeneric size (fp)
   (:documentation "Return the number of bits required by a ranged fp.  An fp type defined with zero or one limits returns :INFINITY."))
 
+;;; Allow the compiler to generate loadable code in the presence of reader macros.
+(defmethod make-load-form ((fixed fp) &optional environment)
+  (declare (ignore environment))
+  `(make-instance ',(class-of fixed)
+                  :value ,(slot-value fixed 'value)))
+
 (defclass ordinary-fp (fp)
   ())
 
