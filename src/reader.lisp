@@ -157,7 +157,8 @@ returning the resultant symbol"
           (read stream)))))
 
 (defun read-user-decimal (decimal-type stream)
-  (let* ((make-name (symb "MAKE-" (symbol-name decimal-type)))
+  (let* ((make-name (find-symbol (concatenate 'string "MAKE-" (symbol-name decimal-type))
+                                 (symbol-package decimal-type)))
          (small (small decimal-type))
          (spec  (cons nil (round (log (/ small) 10))))
          (sizes (cons nil (length (format nil "~D" (cdr spec))))))
