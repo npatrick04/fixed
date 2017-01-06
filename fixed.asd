@@ -6,9 +6,11 @@
   :license "MIT"
   :version "0.0.2"
   :serial t
-  :components ((:file "package")
-	       (:file "reader")
-               (:file "fixed")))
+  :components  ((:module "src"
+                         :components
+                         ((:file "package")
+                          (:file "reader")
+                          (:file "fixed")))))
 
 (asdf:defsystem #:fixed/real-time
   :description "A fixed-point internal real-time type."
@@ -17,7 +19,9 @@
   :version "0.0.1"
   :serial t
   :depends-on (:fixed)
-  :components ((:file "time")))
+  :components ((:module "src"
+                         :components
+                         ((:file "time")))))
 
 (asdf:defsystem #:fixed/test
   :description "Test suite for FIXED"
@@ -26,4 +30,6 @@
   :version "0.0.1"
   :serial t
   :depends-on (:fixed :fiveam)
-  :components ((:file "test")))
+  :components ((:module "test"
+                        :components
+                        ((:file "test")))))
